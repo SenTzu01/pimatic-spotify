@@ -14,6 +14,29 @@ module.exports = {
     type: "object"
     extensions: ["xLink", "xOnLabel", "xOffLabel"]
     properties: {
+      spotify_id:
+        description: "The Spotify ID of your player"
+        type: "string"
+        required: true
+      spotify_type:
+        description: "The Spotify Type of your player"
+        enum: [
+          "Computer",
+          "Tablet",
+          "Smartphone",
+          "Speaker",
+          "TV",
+          "AVR",
+          "STB",
+          "AudioDongle",
+          "GameConsole",
+          "CastVideo",
+          "CastAudio",
+          "Automobile",
+          "Smartwatch",
+          "Chromebook"
+        ]
+        default: "Speaker"
     }
   },
   SpotifyPlaylist: {

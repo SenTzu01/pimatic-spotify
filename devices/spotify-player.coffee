@@ -11,6 +11,11 @@ module.exports = (env) ->
       @debug = plugin.debug || false
       @id = @config.id
       @name = @config.name
+      @spotifyId = @config.spotify_id
+      @spotifyType = @config.spotify_type
+      
+      @_spotifyApi =plugin.getApi()
+      
       super()
     
     destroy: () ->

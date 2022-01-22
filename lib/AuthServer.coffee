@@ -8,9 +8,11 @@ module.exports = (env) ->
   
   class AuthServer extends events.EventEmitter
   
-    constructor: (@_port = 8888, @_client_id, @_client_secret) ->
-      redirectURI = null
-      
+    constructor: (port, clientId, clientSecret) ->
+      ipAddress = null
+      @_port = port || 8888
+      @_loginPath = '/login'
+      callbackPath = '/callback'
       scopes = [
         'ugc-image-upload',
         'user-read-playback-state',
@@ -32,29 +34,24 @@ module.exports = (env) ->
         'user-follow-read',
         'user-follow-modify'
       ]
-      console.log(@_client_secret)
-      spotifyApi = new SpotifyWebApi({
-        clientId: @_client_id
-        clientSecret: @_client_secret
-      })
-      @_app = express()
       
-      @_app.get('/login', (req, res) =>
-        IPv4Address = req.connection.localAddress.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)[0]
-        @_redirectURI = __("http://%s:%s/callback", IPv4Address, @_port)
-        
-        spotifyApi.setRedirectURI(@_redirectURI)
+      spotifyApi = new SpotifyWebApi({clientId, clientSecret})
+      
+      @_app = express()
+      @_app.get(@_loginPath, (req, res) =>
+        ipAddress = req.connection.localAddress.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)[0]
+        spotifyApi.setRedirectURI("http://#{ipAddress}:#{@_port}#{callbackPath}")
         res.redirect(spotifyApi.createAuthorizeURL(scopes))
+      
       )
       
-      @_app.get('/callback', (req, res) =>
+      @_app.get(callbackPath, (req, res) =>
         error = req.query.error
         code = req.query.code
-        console.log code
         state = req.query.state
-        
+        env.logger.debug("Auth code: #{code}")
         if error
-          console.error('Callback Error:', error)
+          env.logger.error('Callback Error:', error)
           res.send("Callback Error: #{error}")
           return
         
@@ -63,37 +60,23 @@ module.exports = (env) ->
           refresh_token = data.body['refresh_token']
           expires_in = data.body['expires_in']
           
+          spotifyApi.setAccessToken(access_token)
+          spotifyApi.setRefreshToken(refresh_token)
           @emit('authorized', data.body)
-          console.log('access_token: ', access_token)
-          console.log('refresh_token: ', refresh_token)
-          console.log("Successfully retrieved access token. Expires in #{expires_in} s.")
+          env.logger.debug("Successfully retrieved access token. Expires in #{expires_in} s.")
           
           res.send('Success! You can now close this window.')
-          
-          refresh = () =>
-            spotifyApi.refreshAccessToken().then( (data) =>
-              access_token = data.body['access_token']
-              console.log("refreshed access token: #{access_token}")
-              @emit('refresh', data.body)
-              console.log('The access token has been refreshed!')
-              console.log('access_token:', access_token)
-              spotifyApi.setAccessToken(access_token)
-            ).catch( (error) =>
-              console.log("Error refreshing token: #{error}")
-            )
-            
-          setInterval( refresh, expires_in / 2 * 1000)
-            
-              
+          spotifyApi = undefined
+        
         ).catch( (error) =>
-          console.error('Error getting Tokens:', error)
+          env.logger.error('Error getting Tokens:', error)
           res.send("Error getting Tokens: #{error}")
         )
       )
       
     start: () =>
       @_app.listen(@_port, () =>
-        console.log __("To authorize the Pimatic Spotify plugin, use a browser and go to http://<server ip>:#{@_port}/login")
+        env.logger.warn("To authorize the Pimatic Spotify plugin, use a browser and go to http://<serverIP>:#{@_port}#{@_loginPath}")
       )
         
     destroy: () =>
