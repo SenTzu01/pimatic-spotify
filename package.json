@@ -1,0 +1,42 @@
+{
+  "name": "pimatic-spotify",
+  "description": "Pimatic Plugin to integrate Spotify",
+  "author": {
+    "name": "Danny Wigmans"
+  },
+  "main": "spotify",
+  "keywords": [
+    "Pimatic",
+    "Spotify"
+  ],
+  "version": "0.0.1",
+  "homepage": "https://github.com/sentzu01/pimatic-spotify",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/sentzu01/pimatic-spotify.git"
+  },
+  "license": "GPL-3.0",
+  "configSchema": "spotify-config-schema.coffee",
+  "dependencies": {
+    "pimatic-plugin-commons": "^0.9.8",
+    "spotify-web-api-node": "^5.0.2",
+    "express": "^4.17.2"
+  },
+  "optionalDependencies": {},
+  "peerDependencies": {
+    "pimatic": "0.9.*"
+  },
+  "engines": {
+    "node": ">=4",
+    "npm": ">1.1.x"
+  },
+  "bugs": {
+    "url": "https://github.com/sentzu01/pimatic-spotify/issues"
+  },
+  "maintainers": [
+    {
+      "name": "sentzu01",
+      "email": "sentzu01@gmail.com"
+    }
+  ]
+}
