@@ -37,6 +37,10 @@ module.exports = {
           "Chromebook"
         ]
         default: "Speaker"
+      default_volume:
+        description: "Default playback volume for this device (0-100)"
+        type: "number"
+        default: 30
     }
   },
   SpotifyPlaylist: {
@@ -59,6 +63,10 @@ module.exports = {
           "playlist"
         ]
         default: "playlist"
+      shuffle:
+        description: "Shuffle songs during playback"
+        type: "boolean"
+        default: false
     }
   }
 }

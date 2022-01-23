@@ -14,10 +14,12 @@ module.exports = (env) ->
       @_spotifyID = @config.spotify_id
       @_spotifyType = @config.spotify_type
       @_spotifyContextUri = @config.spotify_uri
+      @_shuffle = @config.shuffle
       
       super()
     
     getSpotifyContextUri: () => Promise.resolve(@_spotifyContextUri)
+    getShuffle: () => Promise.resolve(@_shuffle)
     
     destroy: () ->
       super()

@@ -76,9 +76,17 @@ module.exports = (env) ->
       if simulate
         return Promise.resolve(__("Would play: '%s' on %s"), @_playlist.name, @_player.name)
       else
-        @_playlist.getSpotifyContextUri().then( (uri) =>
-          @_player.playContent(uri)
-        )
+        @_playlist.getShuffle()
+          .then( (shuffle) =>
+            @_player.setShuffle(shuffle)
+          ).then( () =>
+            @_player.setVolume()
+          ).then( () =>
+            @_playlist.getSpotifyContextUri()
+          ).then( (uri) =>
+            @_player.playContent(uri)
+          )
+        
         return Promise.resolve(__("Playing %s on %s", @_playlist.name, @_player.name))
         
   

@@ -13,7 +13,7 @@ module.exports = (env) ->
       @name = @config.name
       @spotifyId = @config.spotify_id
       @spotifyType = @config.spotify_type
-      
+      @_defaultVolume = @config.default_volume
       @_state = lastState.state?.value || false
       @_isActive = lastState.isActive?.value || false
       @_isPrivateSession = lastState.isPrivateSession?.value || false
@@ -26,7 +26,7 @@ module.exports = (env) ->
       plugin.on('accessToken', @_onAuthorized)
       super()
     
-    setVolume: (volume) =>
+    setVolume: (volume = @_defaultVolume) =>
       return new Promise( (resolve, reject) =>
         return resolve() if !@_isActive
         @_spotifyApi()
@@ -86,9 +86,7 @@ module.exports = (env) ->
       )
     
     playContent: (context_uri) => 
-      @setShuffle().then( () =>
-        @play({context_uri})
-      )
+      @play({context_uri})
     
     play: (options = {}) =>
       return new Promise( (resolve, reject) =>
