@@ -28,11 +28,32 @@ module.exports = (env) ->
     
     setVolume: (volume) =>
       return new Promise( (resolve, reject) =>
-        return resolve() if @_isActive
+        return resolve() if !@_isActive
         @_spotifyApi()
           .setVolume(volume)
           .then( () =>
             @_base.debug("Volume set to #{volume} on #{@name}")
+            @_update()
+            
+          )
+          .then( () =>
+            resolve()
+          
+          )
+          .catch( (error) =>
+            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
+            @_base.rejectWithErrorString Promise.reject, error, "Error setting volume."
+          
+          )
+      )
+    
+    setShuffle: () =>
+      return new Promise( (resolve, reject) =>
+        return resolve() if !@_isActive
+        @_spotifyApi()
+          .setShuffle(true)
+          .then( () =>
+            @_base.debug("Shuffle enabled.")
             @_update()
             
           )
@@ -64,7 +85,10 @@ module.exports = (env) ->
           )
       )
     
-    playContent: (context_uri) => @play({context_uri})
+    playContent: (context_uri) => 
+      @setShuffle().then( () =>
+        @play({context_uri})
+      )
     
     play: (options = {}) =>
       return new Promise( (resolve, reject) =>
