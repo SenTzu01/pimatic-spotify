@@ -80,11 +80,21 @@ module.exports = (env) ->
               @_base.debug(util.inspect(device))
             @_createPlayerDevice(device)
           )
-      
+        
         ).catch( (error) =>
           @_base.error("Error getting my devices: #{error}")
         )
-      
+        
+        @_spotifyApi.getUserPlaylists().then( (data) =>
+          data.body.items.map( (playlist) =>
+            if @debug
+              util = env.require('util')
+              @_base.debug(util.inspect(playlist))
+            @_createPlaylistDevice(playlist)
+          )
+        ).catch( (error) =>
+          @_base.error("Error getting my playlists: #{error}")
+        )
       )
       
       @authServer = new AuthServer(@config.port, @config.clientID, @config.secret)
@@ -160,15 +170,27 @@ module.exports = (env) ->
       deviceConfig = {
         class: "SpotifyPlayer"
         name: device.name
-        id: "spotify-player-#{device.name}"
+        id: "spotify-player-" +  device.name.replace(/ /g, '-').toLowerCase()
         spotify_id: device.id
         spotify_type: device.type
       }
       
       @framework.deviceManager.discoveredDevice('spotify-player', "#{deviceConfig.name}", deviceConfig)
       
-    _createPlaylistDevice: (device) =>
-    
+    _createPlaylistDevice: (playlist) =>
+      
+      deviceConfig = {
+        class: "SpotifyPlaylist"
+        name: playlist.name
+        id: "spotify-player-" + playlist.name.replace(/ /g, '-').toLowerCase()
+        spotify_id: playlist.id
+        spotify_type: playlist.type
+        spotify_uri: playlist.uri
+      }
+      
+      @framework.deviceManager.discoveredDevice('spotify-playlist', "#{deviceConfig.name}", deviceConfig)
+      
+      
   # Create a instance of my plugin
   # and return it to the framework.
   return new SpotifyPlugin

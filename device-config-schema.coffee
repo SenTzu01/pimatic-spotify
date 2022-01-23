@@ -45,6 +45,20 @@ module.exports = {
     type: "object"
     extensions: ["xLink", "xOnLabel", "xOffLabel"]
     properties: {
+      spotify_id:
+        description: "The Spotify ID of your playlist"
+        type: "string"
+        required: true
+      spotify_uri:
+        description: "The Spotify context URI of your playlist"
+        type: "string"
+        required: true
+      spotify_type:
+        description: "The Spotify Type of your playlist"
+        enum: [
+          "playlist"
+        ]
+        default: "playlist"
     }
   }
 }

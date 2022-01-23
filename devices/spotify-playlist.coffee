@@ -11,7 +11,13 @@ module.exports = (env) ->
       @debug = plugin.debug || false
       @id = @config.id
       @name = @config.name
+      @_spotifyID = @config.spotify_id
+      @_spotifyType = @config.spotify_type
+      @_spotifyContextUri = @config.spotify_uri
+      
       super()
+    
+    getSpotifyContextUri: () => Promise.resolve(@_spotifyContextUri)
     
     destroy: () ->
       super()

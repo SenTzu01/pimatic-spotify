@@ -12,7 +12,7 @@ module.exports = (env) ->
 
     parseAction: (input, context) =>
       
-      playerDevices = _(@framework.deviceManager.devices).values().filter(
+      playlistDevices = _(@framework.deviceManager.devices).values().filter(
         (device) => device.config.class is 'SpotifyPlaylist'
       ).value()
       
@@ -76,7 +76,9 @@ module.exports = (env) ->
       if simulate
         return Promise.resolve(__("Would play: '%s' on %s"), @_playlist.name, @_player.name)
       else
-        @_player.play( @_playlist )
+        @_playlist.getSpotifyContextUri().then( (uri) =>
+          @_player.playContent(uri)
+        )
         return Promise.resolve(__("Playing %s on %s", @_playlist.name, @_player.name))
         
   

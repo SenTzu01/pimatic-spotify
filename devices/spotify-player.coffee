@@ -64,11 +64,13 @@ module.exports = (env) ->
           )
       )
     
-    play: () =>
+    playContent: (context_uri) => @play({context_uri})
+    
+    play: (options = {}) =>
       return new Promise( (resolve, reject) =>
         @transferPlayback()
           .then( () =>
-            @_spotifyApi().play()  
+            @_spotifyApi().play(options)  
           
           )
           .then( () =>
