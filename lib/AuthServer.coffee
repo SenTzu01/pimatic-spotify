@@ -49,7 +49,6 @@ module.exports = (env) ->
         error = req.query.error
         code = req.query.code
         state = req.query.state
-        env.logger.debug("Auth code: #{code}")
         if error
           env.logger.error('Callback Error:', error)
           res.send("Callback Error: #{error}")
@@ -66,7 +65,6 @@ module.exports = (env) ->
           env.logger.debug("Successfully retrieved access token. Expires in #{expires_in} s.")
           
           res.send('Success! You can now close this window.')
-          spotifyApi = undefined
         
         ).catch( (error) =>
           env.logger.error('Error getting Tokens:', error)

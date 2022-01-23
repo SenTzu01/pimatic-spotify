@@ -32,6 +32,8 @@ module.exports = (env) ->
       @_refreshToken = null
       @_expiresIn = null
       @_tokenType = null
+      
+      @_updateScheduler = null
     
     init: (app, @framework, @config) =>
       @debug = @config.debug || false
@@ -85,28 +87,36 @@ module.exports = (env) ->
       
       )
       
-      @_authServer = new AuthServer(@config.port, @config.clientID, @config.secret)
-      @_authServer.on('authorized', @_onAuthorized)
-      @_authServer.start(@config.auth_port)
+      @authServer = new AuthServer(@config.port, @config.clientID, @config.secret)
+      @authServer.on('authorized', @_onAuthorized)
+      @authServer.start(@config.auth_port)
     
     getApi: () => return @_spotifyApi
     
     _onAuthorized: (data) =>
-      @setAccessToken(data.access_token)
-      @setRefreshToken(data.refresh_token)
-      @setExpiresIn(data.expires_in)
-      @setTokenType(data.token_type)
+      if data?
+        @setAccessToken(data.access_token)
+        @setRefreshToken(data.refresh_token)
+        @setExpiresIn(data.expires_in)
+        @setTokenType(data.token_type)
+             
+        @_updateScheduler = setInterval( @refreshToken, @_expiresIn / 2 * 1000)
       
-      @_spotifyApi.setAccessToken(@_accessToken)
-      @_spotifyApi.setRefreshToken(@_refreshToken)
-            
-      setInterval( @refreshToken, @_expiresIn / 2 * 1000)
+      else
+        @setAccessToken(null)
+        @setRefreshToken(null)
+        @setExpiresIn(null)
+        @setTokenType(null)
+        
+        clearInterval(@_updateScheduler) if @_updateScheduler?
+        @_base.warn("Access token no longer valid!. Please login again")
     
     refreshToken: () =>
       @_base.debug("Refreshing API access token")
       @_spotifyApi.refreshAccessToken().then( (data) =>
         @setAccessToken(data.body['access_token'])
-        @_spotifyApi.setAccessToken(@_accessToken)
+        @setTokenType(data.body['token_type'])
+        @setExpiresIn(data.body['expires_in'])
         @_base.debug('API access token refreshed successfully')
       
       ).catch( (error) =>
@@ -117,12 +127,14 @@ module.exports = (env) ->
     setAccessToken: (token) =>
       return if @_accessToken is token
       @_accessToken = token
+      @_spotifyApi.setAccessToken(@_accessToken)
       @emit('accessToken', @_accessToken)
       @_base.debug __("accesToken: %s", @_accessToken)
     
     setRefreshToken: (token) =>
       return if @_refreshToken is token
       @_refreshToken = token
+      @_spotifyApi.setRefreshToken(@_refreshToken)
       @emit('refreshToken', @_refreshToken)
       @_base.debug __("refreshToken: %s", @_refreshToken)
     
