@@ -22,7 +22,8 @@ module.exports = (env) ->
   ]
   
   actionProviders = [
-    'spotify-playlist-action'
+    'spotify-playlist-action',
+    'spotify-volume-action'
   ]
   
   # ###Spotify Plugin class
@@ -170,7 +171,7 @@ module.exports = (env) ->
       deviceConfig = {
         class: "SpotifyPlayer"
         name: device.name
-        id: "spotify-player-" +  device.name.replace(/ /g, '-').toLowerCase()
+        id: "spotify-player-" +  device.name.replace(/[^A-Za-z0-9\-]+/g, '-').toLowerCase()
         spotify_id: device.id
         spotify_type: device.type
       }
@@ -182,7 +183,7 @@ module.exports = (env) ->
       deviceConfig = {
         class: "SpotifyPlaylist"
         name: playlist.name
-        id: "spotify-player-" + playlist.name.replace(/ /g, '-').toLowerCase()
+        id: "spotify-playlist-" + playlist.name.replace(/[^A-Za-z0-9\-]+/g, '-').toLowerCase()
         spotify_id: playlist.id
         spotify_type: playlist.type
         spotify_uri: playlist.uri
