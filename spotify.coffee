@@ -131,9 +131,9 @@ module.exports = (env) ->
     _refreshAccessToken: () =>
       @_base.debug("Refreshing API access token")
       @_spotifyApi.refreshAccessToken().then( (data) =>
-        @setAccessToken(data.body['access_token'])
-        @setTokenType(data.body['token_type'])
-        @setExpiresIn(data.body['expires_in'])
+        @_setAccessToken(data.body['access_token'])
+        @_setTokenType(data.body['token_type'])
+        @_setExpiresIn(data.body['expires_in'])
         @_base.debug('API access token refreshed successfully')
       
       ).catch( (error) =>
