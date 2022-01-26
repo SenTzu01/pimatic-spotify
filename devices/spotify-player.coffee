@@ -3,6 +3,7 @@ module.exports = (env) ->
   Promise = env.require 'bluebird'
   _ = env.require 'lodash'
   commons = require('pimatic-plugin-commons')(env)
+  t = env.require('decl-api').types
   
   class SpotifyPlayer extends env.devices.AVPlayer
 
@@ -11,128 +12,117 @@ module.exports = (env) ->
       @debug = @plugin.debug || false
       @id = @config.id
       @name = @config.name
-      @spotifyId = @config.spotify_id
-      @spotifyType = @config.spotify_type
+      @_spotifyId = @config.spotify_id
+      @_spotifyType = @config.spotify_type
       @_defaultVolume = @config.default_volume
-      @_state = lastState.state?.value || false
+      
+      @addAttribute 'isActive',
+        description: "Spotify device is active",
+        type: t.boolean
+        discrete: true
+      @addAttribute 'isPlaying',
+        description: "Spotify device is playing",
+        type: t.boolean
+        discrete: true
+      @addAttribute 'isPrivateSession',
+        description: "Spotify device is in a private session",
+        type: t.boolean
+        discrete: true
+      @addAttribute 'isRestricted',
+        description: "Spotify device is ar restricted playback device",
+        type: t.boolean
+        discrete: true
+      
       @_isActive = lastState.isActive?.value || false
       @_isPlaying = lastState.isPlaying?.value || false
       @_isPrivateSession = lastState.isPrivateSession?.value || false
       @_isRestricted = lastState.isRestricted?.value || false
-      @_contextUri = lastState.contextUri?.value || null
-      @_updateScheduler = null
-      @_interval = 5000
+      
+      super()
       
       @_spotifyApi = () => @plugin.getApi()
-      @plugin.on('accessToken', @_onAccessToken)
-      super()
+      @plugin.on('currentDevice', @_onCurrentDevice)
+      @plugin.on('isPlaying', @_onIsPlaying)
+      @plugin.on('currentArtist', @_onCurrentArtist)
+      @plugin.on('currentTrack', @_onCurrentTrack)
     
-    getContextUri: () => return @_contextUri
-    isPlaying: () => return @_isPlaying
+    getIsActive: () => Promise.resolve(@_isActive)
+    getIsPlaying: () => Promise.resolve(@_isPlaying)
+    getIsPrivateSession: () => Promise.resolve(@_isPrivateSession)
+    getIsRestricted: () => Promise.resolve(@_isRestricted)
     
     setVolume: (volume = @_defaultVolume) =>
       return new Promise( (resolve, reject) =>
         return resolve() if !@_isActive
-        @_spotifyApi()
-          .setVolume(volume)
-          .then( () =>
-            @_base.debug("Volume set to #{volume} on #{@name}")
-            @_update()
-            
-          )
-          .then( () =>
-            resolve()
-          
-          )
-          .catch( (error) =>
-            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-            @_base.rejectWithErrorString Promise.reject, error, "Error setting volume."
-          
-          )
+        @_spotifyApi().setVolume(volume, {device_id: @_spotifyId}).then( () =>
+          @_base.debug("Playback volume set to: #{volume}")
+          resolve()
+        
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error setting volume to #{volume}"
+        
+        )
       )
     
-    setShuffle: () =>
+    setShuffle: (shuffle = true) =>
       return new Promise( (resolve, reject) =>
         return resolve() if !@_isActive
-        @_spotifyApi()
-          .setShuffle(true)
-          .then( () =>
-            @_base.debug("Shuffle enabled.")
-            @_update()
-            
-          )
-          .then( () =>
-            resolve()
+        @_spotifyApi().setShuffle(shuffle, {
+          device_id: @_spotifyId
+        }).then( () =>
+          @_base.debug("Shuffle for current playback set to: #{shuffle}")
+          resolve()
           
-          )
-          .catch( (error) =>
-            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-            @_base.rejectWithErrorString Promise.reject, error, "Error setting volume."
+          ).catch( (error) =>
+            @_base.rejectWithErrorString Promise.reject, error, "Error setting shuffle to #{shuffle}"
           
           )
       )
     
-    transferPlayback: () =>
+    transferPlayback: (start) =>
       return new Promise( (resolve, reject) =>
-        return resolve() if @_isActive
-        @_spotifyApi()
-          .transferMyPlayback([@spotifyId])
-          .then( () =>
-            @_base.debug("playback transferred to: #{@name}")
-            resolve()
+        return resolve() if @_isActive or @_isPlaying
+        @_spotifyApi().transferMyPlayback([@_spotifyId], {
+          play: start
+        }).then( () =>
+          @_base.debug("Playback transferred to: #{@name}")
+          resolve()
           
-          )
-          .catch( (error) =>
-            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-            @_base.rejectWithErrorString Promise.reject, error, "Error starting playback."
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error transferring playback to #{@name}"
           
-          )
-      )
-    
-    playContent: (context_uri) => 
-      @play({context_uri})
-    
-    play: (options = {}) =>
-      return new Promise( (resolve, reject) =>
-        @transferPlayback()
-          .then( () =>
-            @_spotifyApi().play(options)  
-          
-          )
-          .then( () =>
-            @_base.debug("Started playback on #{@name}")
-            @_update()
-            
-          )
-          .then( () =>
-            resolve()
-          
-          )
-          .catch( (error) =>
-            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-            @_base.rejectWithErrorString Promise.reject, error, "Error starting playback."
-            
-          )
         )
+      )
+    
+    play: (context_uri) =>
+      return new Promise( (resolve, reject) =>
+        return resolve() if !@_isActive or @_isPlaying
+        @_spotifyApi().play({
+          device_id: @_spotifyId
+          context_uri: context_uri
+        }).then( () =>
+          @_base.debug("Started playback on #{@name}")
+          resolve()
+        
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error starting playback"
+          
+        )
+      )
       
     pause: () =>
       return new Promise( (resolve, reject) =>
-        return resolve() if !@_isActive
-        @_spotifyApi()
-          .pause()
-          .then( () =>
-            @_base.debug("Playback paused on #{@name}")
-            @_update()
-            
-          )
-          .then( () =>
-            resolve()
+        return resolve() if !@_isActive or !@_isPlaying
+        @_spotifyApi().pause({
+          device_id: @_spotifyId
+        }).then( () =>
+          @_base.debug("Paused playback on #{@name}")
+          resolve()
+        
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error pausing playback"
           
-          ).catch( (error) =>
-            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-            @_base.rejectWithErrorString Promise.reject, error, "Error pausing playback."
-          
-          )
+        )
       )
     
     stop: () => @pause()
@@ -140,114 +130,73 @@ module.exports = (env) ->
     previous: () =>
       return new Promise( (resolve, reject) =>
         return resolve() if !@_isActive
-        @_spotifyApi()
-          .skipToPrevious()
-          .then( () =>
-            @_base.debug("Skipped to previous song on #{@name}")
-            @_update()
-            
-          )
-          .then( () =>
-            resolve()
+        @_spotifyApi().skipToPrevious({
+          device_id: @_spotifyId
+        }).then( () =>
+          @_base.debug("Skipped to previous song on #{@name}")
+          resolve()
           
-          ).catch( (error) =>
-            #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-            @_base.rejectWithErrorString Promise.reject, error, "Error skipping to previous song."
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error skipping to previous song"
           
-          )
+        )
       )
     
     next: () =>
       return new Promise( (resolve, reject) =>
         return resolve() if !@_isActive
-        @_spotifyApi()
-          .skipToNext()
-            .then( () =>
-              @_base.debug("Skipped to next song on #{@name}")
-              @_update()
-            
-            )
-            .then( () =>
-              resolve()
-              
-            ).catch( (error) =>
-              #if the user making the request is non-premium, a 403 FORBIDDEN response code will be returned
-              @_base.rejectWithErrorString Promise.reject, error, "Error skipping to next song."
+        @_spotifyApi().skipToNext({
+          device_id: @_spotifyId
+        }).then( () =>
+          @_base.debug("Skipped to next song")
+          resolve()
           
-            )
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error skipping to next song."
+          
+        )
       )
     
-    _onAccessToken: (token) =>
-      if token?
-        @_update()
-          .then( () =>
-            @_updateScheduler = setInterval(@_update, @_interval)
-            Promise.resolve
-          ).catch( (error) =>
-            @_base.rejectWithErrorString Promise.reject, error, "Error updating device: #{error}"
-          )
+    _onCurrentDevice: (device) =>
+      if device is @_spotifyId
+        @_setIsActive(@plugin.getCurrentDevice().is_active)
+        @_setIsPrivateSession(@plugin.getCurrentDevice().is_private_session)
+        @_setIsRestricted(@plugin.getCurrentDevice().is_restricted)
+        @_setVolume(@plugin.getCurrentVolume())
       
       else
-        clearInterval(@_updateScheduler) if @_updateScheduler?
-        @_setIsActive(false)
-        @_setIsPrivateSession(false)
-        @_setIsRestricted(false)
-        @_setVolume(0)
-        @_setContextUri("")
-        @_setCurrentArtist("")
-        @_setCurrentTitle("")
-        @_setState("stop")
-        @_setIsPlaying(false)
-        Promise.resolve
+        @_clearProperties()
     
-    _update: () =>
-      return new Promise( (resolve, reject) =>
-        @_spotifyApi()
-        .getMyCurrentPlaybackState()
-          .then( (data) =>
-            if data.statusCode is 200 and data.body?.device?.id is @spotifyId
-              @_base.debug("Updating properties")
-              details = data.body
-              currentArtist = []
-              currentArtist.push(artist.name) for artist in data.body.item.album.artists
-              @_setIsActive(data.body.device.is_active)
-              @_setIsPrivateSession(data.body.device.is_private_session)
-              @_setIsRestricted(data.body.device.is_restricted)
-              @_setVolume(data.body.device.volume_percent)
-              @_setContextUri(data.body.context.uri)
-              @_setCurrentArtist(currentArtist.join(", "))
-              @_setCurrentTitle(data.body.item.name)
-              @_setIsPlaying(data.body.is_playing)
-              state = if data.body.is_playing then "play" else "pause"
-              @_setState(state)
-            
-            else
-              @_base.debug("Device is not active or general error. Clearing properties")
-              @_setIsActive(false)
-              @_setIsPrivateSession(false)
-              @_setIsRestricted(false)
-              @_setVolume(0)
-              @_setContextUri("")
-              @_setCurrentArtist("")
-              @_setCurrentTitle("")
-              @_setState("stop")
-              @_setIsPlaying(false)
-            resolve()
-          
-          ).catch( (error) =>
-            @_base.rejectWithErrorString Promise.reject, error, "Error getting device details from Spotify: #{error}"
-          )
-      )
+    _onIsPlaying: (playing) =>
+      if @_isActive
+        @_setIsPlaying(playing)
+        @_setState(if playing then "play" else "pause")
+      
+    _onCurrentArtist: (artist) =>
+        @_setCurrentArtist(artist) if @_isActive
+    
+    _onCurrentTrack: (track) =>
+        @_setCurrentTitle(track) if @_isActive
+    
+    _clearProperties: () =>
+      @_setIsActive(false)
+      @_setIsPrivateSession(false)
+      @_setIsRestricted(false)
+      @_setVolume(0)
+      @_setCurrentArtist("")
+      @_setCurrentTitle("")
+      @_setState("stop")
+      @_setIsPlaying(false)
     
     _setCurrentArtist: (artist) =>
       return if @_currentArtist is artist
       @_base.debug __("currentArtist: %s", artist)
       super(artist)
 
-    _setCurrentTitle: (title) =>
-      return if @_currentTitle is title
-      @_base.debug __("currentTitle: %s", title)
-      super(title)
+    _setCurrentTitle: (track) =>
+      return if @_currentTitle is track
+      @_base.debug __("currentTitle: %s", track)
+      super(track)
       
     _setState: (state) =>
       return if @_state is state
@@ -257,10 +206,7 @@ module.exports = (env) ->
     _setIsPlaying: (bool) =>
       return if @_isPlaying is bool
       @_isPlaying = bool
-      @emit('isPlaying', {
-        @_isPlaying
-        @_contextUri
-      })
+      @emit('isPlaying', @_isPlaying)
       @_base.debug __("isPlaying: %s", @_isPlaying)
       
     _setIsActive: (bool) =>
@@ -281,13 +227,10 @@ module.exports = (env) ->
       @emit('isRestricted', @_isRestricted)
       @_base.debug __("isRestricted: %s", @_isRestricted)
     
-    _setContextUri: (uri) =>
-      return if @_contextUri is uri
-      @_contextUri = uri
-      @emit('contextUri', @_contextUri)
-      @_base.debug __("contextUri: %s", @_contextUri)
-    
     destroy: () ->
-      clearInterval(@_updateScheduler)
-      @plugin.removeListener('accessToken', @_onAccessToken)
+      @plugin.removeListener('currentDevice', @_onCurrentDevice)
+      @plugin.removeListener('isPlaying', @_onIsPlaying)
+      @plugin.removeListener('currentArtist', @_onCurrentArtist)
+      @plugin.removeListener('currentTrack', @_onCurrentTrack)
+    
       super()

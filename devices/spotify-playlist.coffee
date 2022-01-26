@@ -12,44 +12,20 @@ module.exports = (env) ->
       @id = @config.id
       @name = @config.name
       
-      @_spotifyID = @config.spotify_id
+      @_spotifyId = @config.spotify_id
       @_spotifyType = @config.spotify_type
-      @_spotifyContextUri = @config.spotify_uri
+      @_spotifyUri = @config.spotify_uri
       @_shuffle = @config.shuffle
       
-      @_updateScheduler = null
-      @_interval = 5000
-      
-      @plugin.on('accessToken', @_onAccessToken)
-      
       super()
+      
+      @plugin.on('currentContext', @_onCurrentContext)
     
-    getSpotifyContextUri: () => Promise.resolve(@_spotifyContextUri)
+    getSpotifyUri: () => Promise.resolve(@_spotifyUri)
     getShuffle: () => Promise.resolve(@_shuffle)
     
-    _onAccessToken: (token) =>
-      if token?
-        @_update()
-          .then( () =>
-            @_updateScheduler = setInterval(@_update, @_interval)
-            Promise.resolve
-          ).catch( (error) =>
-            @_base.rejectWithErrorString Promise.reject, error, "Error updating device: #{error}"
-          )
-      
-      else
-        clearInterval(@_updateScheduler) if @_updateScheduler?
-        @_setPresence(false)
-     
-    _update: () =>
-      return new Promise( (resolve, reject) =>
-        devices = _(@_framework.deviceManager.devices).values().filter( (device) => 
-            device.config.class is 'SpotifyPlayer' and device.isPlaying() and device.getContextUri() is @_spotifyContextUri
-        ).value()
-        
-        @_setPresence(devices.length > 0)
-        resolve()
-      )
+    _onCurrentContext: (uri) =>
+        @_setPresence(uri is @_spotifyUri)
     
     _setPresence: (presence) =>
       return if @_presence is presence
@@ -57,6 +33,5 @@ module.exports = (env) ->
       super(presence)
     
     destroy: () ->
-      clearInterval(@_updateScheduler)
-      @plugin.removeListener('accessToken', @_onAccessToken)
+      @plugin.removeListener('currentContext', @_onCurrentContext)
       super()

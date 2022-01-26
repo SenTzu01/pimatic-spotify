@@ -76,16 +76,18 @@ module.exports = (env) ->
       if simulate
         return Promise.resolve(__("Would play: '%s' on %s"), @_playlist.name, @_player.name)
       else
-        @_playlist.getShuffle()
-          .then( (shuffle) =>
-            @_player.setShuffle(shuffle)
-          ).then( () =>
-            @_player.setVolume()
-          ).then( () =>
-            @_playlist.getSpotifyContextUri()
-          ).then( (uri) =>
-            @_player.playContent(uri)
-          )
+        @_player.transferPlayback(true).then( () =>
+          @_playlist.getSpotifyUri()
+        ).then( (uri) =>
+          @_player.play(uri)
+        ).then( () =>
+          @_player.setVolume()
+        ).then( () =>
+          @_playlist.getShuffle()
+        ).then( (shuffle) =>
+          @_player.setShuffle(shuffle)
+        )
+
         
         return Promise.resolve(__("Playing %s on %s", @_playlist.name, @_player.name))
         

@@ -26,21 +26,20 @@ module.exports = (env) ->
     'spotify-volume-action'
   ]
   
-  # ###Spotify Plugin class
   class SpotifyPlugin extends env.plugins.Plugin
     constructor: () ->
       @_accessToken = null
       @_refreshToken = null
       @_expiresIn = null
       @_tokenType = null
+      @_playbackState = null
+      @_tokenRefreshScheduler = null
+      @_playbackRefreshScheduler = null
       
-      @_updateScheduler = null
-    
     init: (app, @framework, @config) =>
       @debug = @config.debug || false
       @_base = commons.base @, 'Plugin'
       
-      # register devices
       deviceConfigDef = require("./device-config-schema")
       
       for device in deviceConfigTemplates
@@ -54,7 +53,6 @@ module.exports = (env) ->
           createCallback: @_callbackHandler(className, classType)
         })
       
-      # register actions
       for provider in actionProviders
         className = provider.replace(/(^[a-z])|(\-[a-z])/g, ($1) ->
           $1.toUpperCase().replace('-','')) + 'Provider'
@@ -67,32 +65,27 @@ module.exports = (env) ->
         clientSecret: @config.secret
       })
       
-      # auto-discovery
       @framework.deviceManager.on('discover', () =>
         return unless @_accessToken?
         @_base.debug("Starting discovery")
         @framework.deviceManager.discoverMessage( 'pimatic-spotify', "Searching for Spotify devices" )
-        # device discovery actions, e.g. load players and playlists
         
         @_spotifyApi.getMyDevices().then( (data) =>
-          data.body.devices.map( (device) =>
-            if @debug
-              util = env.require('util')
-              @_base.debug(util.inspect(device))
-            @_createPlayerDevice(device)
-          )
+          if data.statusCode is 200
+            data.body.devices.map( (device) =>
+              @_createPlayerDevice(device)
+            )
         
         ).catch( (error) =>
           @_base.error("Error getting my devices: #{error}")
         )
         
         @_spotifyApi.getUserPlaylists().then( (data) =>
-          data.body.items.map( (playlist) =>
-            if @debug
-              util = env.require('util')
-              @_base.debug(util.inspect(playlist))
-            @_createPlaylistDevice(playlist)
-          )
+          if data.statusCode is 200
+            data.body.items.map( (playlist) =>
+              @_createPlaylistDevice(playlist)
+            )
+        
         ).catch( (error) =>
           @_base.error("Error getting my playlists: #{error}")
         )
@@ -103,26 +96,39 @@ module.exports = (env) ->
       @authServer.start(@config.auth_port)
     
     getApi: () => return @_spotifyApi
+    getCurrentState: () => return @_playbackState
+    getCurrentDevice: () => return @_playbackState?.device || null
+    getCurrentContext: () => return @_playbackState?.context || null
+    getCurrentTrack: () => return @_playbackState?.item || null
+    getCurrentVolume: () => return @_playbackState?.device?.volume_percent || null
+    getCurrentArtist: () =>
+      return null if !@_playbackState?.item?.artists?
+      currentArtist = []
+      currentArtist.push(artist.name) for artist in @_playbackState.item.artists
+      return currentArtist.join(', ')
+        
     
     _onAuthorized: (data) =>
       if data?
-        @setAccessToken(data.access_token)
-        @setRefreshToken(data.refresh_token)
-        @setExpiresIn(data.expires_in)
-        @setTokenType(data.token_type)
-             
-        @_updateScheduler = setInterval( @refreshToken, @_expiresIn / 2 * 1000)
+        @_setAccessToken(data.access_token)
+        @_setRefreshToken(data.refresh_token)
+        @_setExpiresIn(data.expires_in)
+        @_setTokenType(data.token_type)
+        
+        @_tokenRefreshScheduler = setInterval( @_refreshAccessToken, @_expiresIn / 2 * 1000)
+        @_playbackRefreshScheduler = setInterval( @_refreshPlaybackState, 5000 )
       
       else
-        @setAccessToken(null)
-        @setRefreshToken(null)
-        @setExpiresIn(null)
-        @setTokenType(null)
+        @_setAccessToken(null)
+        @_setRefreshToken(null)
+        @_setExpiresIn(null)
+        @_setTokenType(null)
         
-        clearInterval(@_updateScheduler) if @_updateScheduler?
+        clearInterval(@_tokenRefreshScheduler) if @_tokenRefreshScheduler?
+        clearInterval(@_playbackRefreshScheduler) if @_playbackRefreshScheduler?
         @_base.warn("Access token no longer valid!. Please login again")
     
-    refreshToken: () =>
+    _refreshAccessToken: () =>
       @_base.debug("Refreshing API access token")
       @_spotifyApi.refreshAccessToken().then( (data) =>
         @setAccessToken(data.body['access_token'])
@@ -135,63 +141,89 @@ module.exports = (env) ->
       
       )
     
-    setAccessToken: (token) =>
-      return if @_accessToken is token
-      @_accessToken = token
-      @_spotifyApi.setAccessToken(@_accessToken)
-      @emit('accessToken', @_accessToken)
-      @_base.debug __("accesToken: %s", @_accessToken)
+    _refreshPlaybackState: () =>
+      @_spotifyApi.getMyCurrentPlaybackState().then( (data) =>
+        if data.statusCode is 200
+          
+          @_setPlaybackState(data.body)
+        
+        else
+          @_setPlaybackState(null)
+      )
     
-    setRefreshToken: (token) =>
+    _setPlaybackState: (data) =>
+      if !data?
+        @_playbackState = null
+        return
+      
+      artists = []
+      artists.push(artist.name) for artist in data.item.artists
+      artist = artists.join(', ')
+      @_playbackState = data
+      
+      @emit('playbackState', data)
+      @emit('currentDevice', data.device.id)
+      @emit('isPlaying', data.is_playing)
+      @emit('currentArtist', artist)
+      @emit('currentContext', data.context.uri)
+      @emit('currentTrack', data.item.name)
+        
+    _setAccessToken: (token) =>
+      return if @_accessToken is token
+      @_accessToken = token 
+      @_spotifyApi.setAccessToken(token)
+      @emit('accessToken', token)
+      @_base.debug __("accesToken: %s", token)
+    
+    _setRefreshToken: (token) =>
       return if @_refreshToken is token
       @_refreshToken = token
-      @_spotifyApi.setRefreshToken(@_refreshToken)
-      @emit('refreshToken', @_refreshToken)
-      @_base.debug __("refreshToken: %s", @_refreshToken)
+      @_spotifyApi.setRefreshToken(token)
+      @emit('refreshToken', token)
+      @_base.debug __("refreshToken: %s", token)
     
-    setExpiresIn: (expiry) =>
+    _setExpiresIn: (expiry) =>
       return if @_expiresIn is expiry
       @_expiresIn = expiry
-      @emit('expiresIn', @_expiresIn)
-      @_base.debug __("expiresIn: %s", @_expiresIn)
+      @emit('expiresIn', expiry)
+      @_base.debug __("expiresIn: %s", expiry)
     
-    setTokenType: (type) =>
+    _setTokenType: (type) =>
       return if @_tokenType is type
       @_tokenType = type
-      @emit('tokenType', @_tokenType)
-      @_base.debug __("tokenType: %s", @_tokenType)
+      @emit('tokenType', type)
+      @_base.debug __("tokenType: %s", type)
       
     _callbackHandler: (className, classType) ->
-      # this closure is required to keep the className and classType
-      # context as part of the iteration
       return (config, lastState) =>
         return new classType(config, @, lastState, @framework)
     
     _createPlayerDevice: (device) =>
-      deviceConfig = {
+      @_createDevice({
         class: "SpotifyPlayer"
-        name: device.name
-        id: "spotify-player-" +  device.name.replace(/[^A-Za-z0-9\-]+/g, '-').toLowerCase()
+        name: "Connect Device " + device.name
+        id: @_generateId("player-" + device.name)
         spotify_id: device.id
         spotify_type: device.type
-      }
-      
-      @framework.deviceManager.discoveredDevice('spotify-player', "#{deviceConfig.name}", deviceConfig)
+      })
       
     _createPlaylistDevice: (playlist) =>
-      
-      deviceConfig = {
+      @_createDevice({
         class: "SpotifyPlaylist"
-        name: playlist.name
-        id: "spotify-playlist-" + playlist.name.replace(/[^A-Za-z0-9\-]+/g, '-').toLowerCase()
+        name: "Playlist " +  playlist.name
+        id: @_generateId("playlist-" + playlist.name)
         spotify_id: playlist.id
         spotify_type: playlist.type
         spotify_uri: playlist.uri
-      }
-      
-      @framework.deviceManager.discoveredDevice('spotify-playlist', "#{deviceConfig.name}", deviceConfig)
-      
-      
-  # Create a instance of my plugin
-  # and return it to the framework.
+      })
+    
+    _createDevice: (deviceConfig) =>
+      @framework.deviceManager.discoveredDevice('spotify', "#{deviceConfig.name}", deviceConfig)
+    
+    _generateId: (name) =>
+      "spotify-" + name.replace(/[^A-Za-z0-9\-]+/g, '-').toLowerCase()
+        
+    _destroy: () ->
+      @authServer.removeListener('authorized', @_onAuthorized)
+  
   return new SpotifyPlugin
