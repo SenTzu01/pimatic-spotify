@@ -96,16 +96,16 @@ module.exports = (env) ->
       @authServer.start(@config.auth_port)
     
     getApi: () => return @_spotifyApi
-    getCurrentState: () => return @_playbackState
+    #getCurrentState: () => return @_playbackState #
     getCurrentDevice: () => return @_playbackState?.device || null
-    getCurrentContext: () => return @_playbackState?.context || null
-    getCurrentTrack: () => return @_playbackState?.item || null
+    #getCurrentContext: () => return @_playbackState?.context || null #
+    #getCurrentTrack: () => return @_playbackState?.item || null #
     getCurrentVolume: () => return @_playbackState?.device?.volume_percent || null
-    getCurrentArtist: () =>
-      return null if !@_playbackState?.item?.artists?
-      currentArtist = []
-      currentArtist.push(artist.name) for artist in @_playbackState.item.artists
-      return currentArtist.join(', ')
+    #getCurrentArtist: () =>
+    #  return null if !@_playbackState?.item?.artists?
+    #  currentArtist = []
+    #  currentArtist.push(artist.name) for artist in @_playbackState.item.artists
+    #  return currentArtist.join(', ')
         
     
     _onAuthorized: (data) =>

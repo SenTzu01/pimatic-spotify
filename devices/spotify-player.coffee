@@ -173,10 +173,10 @@ module.exports = (env) ->
         @_setState(if playing then "play" else "pause")
       
     _onCurrentArtist: (artist) =>
-        @_setCurrentArtist(artist) if @_isActive
+      @_setCurrentArtist(artist) if @_isActive
     
     _onCurrentTrack: (track) =>
-        @_setCurrentTitle(track) if @_isActive
+      @_setCurrentTitle(track) if @_isActive
     
     _clearProperties: () =>
       @_setIsActive(false)
