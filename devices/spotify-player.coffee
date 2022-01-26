@@ -73,10 +73,10 @@ module.exports = (env) ->
           @_base.debug("Shuffle for current playback set to: #{shuffle}")
           resolve()
           
-          ).catch( (error) =>
-            @_base.rejectWithErrorString Promise.reject, error, "Error setting shuffle to #{shuffle}"
+        ).catch( (error) =>
+          @_base.rejectWithErrorString Promise.reject, error, "Error setting shuffle to #{shuffle}"
           
-          )
+        )
       )
     
     transferPlayback: (start) =>
@@ -89,7 +89,7 @@ module.exports = (env) ->
           resolve()
           
         ).catch( (error) =>
-          @_base.rejectWithErrorString Promise.reject, error, "Error transferring playback to #{@name}"
+          @_base.rejectWithErrorString Promise.reject, error, "Error transferring playback"
           
         )
       )
