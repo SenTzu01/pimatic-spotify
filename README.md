@@ -18,7 +18,7 @@ Roadmap:
 
 * Spotify Premium account
 * Spotify App created via https://developer.spotify.com/dashboard/applications
-* Redirect URI correctly set in the Spotify app (usually http://<Pimatic Server IP>:8888/callback)
+* Redirect URI correctly set in the Spotify app (usually http://Pimatic-Server-IP:8888/callback)
 * Client ID and secret obtained from the Spotify app
 
 ## Contributions / Credits
