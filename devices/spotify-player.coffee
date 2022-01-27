@@ -33,10 +33,10 @@ module.exports = (env) ->
         type: t.boolean
         discrete: true
       
-      @_isActive = lastState.isActive?.value || false
-      @_isPlaying = lastState.isPlaying?.value || false
-      @_isPrivateSession = lastState.isPrivateSession?.value || false
-      @_isRestricted = lastState.isRestricted?.value || false
+      @_isActive = lastState?.isActive?.value || false
+      @_isPlaying = lastState?.isPlaying?.value || false
+      @_isPrivateSession = lastState?.isPrivateSession?.value || false
+      @_isRestricted = lastState?.isRestricted?.value || false
       
       super()
       
