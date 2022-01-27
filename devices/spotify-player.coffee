@@ -79,9 +79,9 @@ module.exports = (env) ->
         )
       )
     
-    transferPlayback: (start) =>
+    transferPlayback: (start = false) =>
       return new Promise( (resolve, reject) =>
-        return resolve() if @_isActive or @_isPlaying
+        return resolve() if @_isActive or !@plugin.getCurrentContext()?
         @_spotifyApi().transferMyPlayback([@_spotifyId], {
           play: start
         }).then( () =>
@@ -94,16 +94,16 @@ module.exports = (env) ->
         )
       )
     
-    play: (context_uri) =>
+    play: (context_uri = @plugin.getCurrentContext().uri) =>
       return new Promise( (resolve, reject) =>
-        return resolve() if !@_isActive or @_isPlaying
+        #console.log("context_uri: #{context_uri}")
+        return resolve() if !context_uri? or @_isPlaying
         @_spotifyApi().play({
           device_id: @_spotifyId
           context_uri: context_uri
         }).then( () =>
           @_base.debug("Started playback on #{@name}")
           resolve()
-        
         ).catch( (error) =>
           @_base.rejectWithErrorString Promise.reject, error, "Error starting playback"
           

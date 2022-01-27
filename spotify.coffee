@@ -58,7 +58,7 @@ module.exports = (env) ->
           $1.toUpperCase().replace('-','')) + 'Provider'
         classType = require('./actions/' + provider)(env)
         @_base.debug "Registering action provider #{className}"
-        @framework.ruleManager.addActionProvider(new classType @framework)
+        @framework.ruleManager.addActionProvider(new classType @framework, @)
       
       @_spotifyApi = new SpotifyWebApi({
         clientId: @config.clientID
@@ -98,7 +98,7 @@ module.exports = (env) ->
     getApi: () => return @_spotifyApi
     #getCurrentState: () => return @_playbackState #
     getCurrentDevice: () => return @_playbackState?.device || null
-    #getCurrentContext: () => return @_playbackState?.context || null #
+    getCurrentContext: () => return @_playbackState?.context || null #
     #getCurrentTrack: () => return @_playbackState?.item || null #
     getCurrentVolume: () => return @_playbackState?.device?.volume_percent || null
     #getCurrentArtist: () =>
