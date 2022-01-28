@@ -21,6 +21,7 @@ module.exports = (env) ->
       match = null
 
       M(input, context)
+        .match(['state of '])
         .matchDevice(devices, (next, d) =>   
           next.match([' is', ' reports', ' signals'])
             .match([' playing', ' stopped',' paused', ' not playing'], (m, s) =>
