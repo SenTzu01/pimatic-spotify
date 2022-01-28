@@ -65,11 +65,13 @@ module.exports = (env) ->
         if simulate
           return Promise.resolve(__("Would set volume of: '%s' to %s"), @_player.name, volume)
         else
-          @_player.setVolume(volume).then( () =>
-            env.logger.info("Set volume of #{@_player.name} to #{volume}")
+          Promise.delay(1000).then( () => # delay in case play action and volume action are in a single rule action
+            @_player.setVolume(volume)
+          ).then( () =>
+            return Promise.resolve("Set volume of #{@_player.name} to #{volume}")
           ).catch( (error) =>
+            console.log(error)
             env.logger.error("Error executing action: #{error}")
-          ).finally( () =>
             return Promise.resolve()
           )
       )
