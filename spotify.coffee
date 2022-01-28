@@ -26,6 +26,10 @@ module.exports = (env) ->
     'spotify-volume-action'
   ]
   
+  predicateProviders = [
+    'spotify-state-predicate'
+  ]
+  
   class SpotifyPlugin extends env.plugins.Plugin
     constructor: () ->
       @_accessToken = null
@@ -59,6 +63,13 @@ module.exports = (env) ->
         classType = require('./actions/' + provider)(env)
         @_base.debug "Registering action provider #{className}"
         @framework.ruleManager.addActionProvider(new classType @framework, @)
+      
+      for provider in predicateProviders
+        className = provider.replace(/(^[a-z])|(\-[a-z])/g, ($1) ->
+          $1.toUpperCase().replace('-','')) + 'Provider'
+        classType = require('./predicates/' + provider)(env)
+        @_base.debug "Registering predicate provider #{className}"
+        @framework.ruleManager.addPredicateProvider(new classType @framework, @)
       
       @_spotifyApi = new SpotifyWebApi({
         clientId: @config.clientID
