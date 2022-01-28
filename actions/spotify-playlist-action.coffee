@@ -84,6 +84,10 @@ module.exports = (env) ->
           @_playlist.getSpotifyUri()
         ).then( (uri) =>
           @_player.play(uri)
+        ).catch( (error) =>
+          env.logger.error("Error executing action: #{error}")
+        ).finally( () =>
+          return Promise.resolve()
         )
 
 
