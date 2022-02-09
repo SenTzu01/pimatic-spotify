@@ -155,11 +155,11 @@ module.exports = (env) ->
     _refreshPlaybackState: () =>
       @_spotifyApi.getMyCurrentPlaybackState().then( (data) =>
         if data.statusCode is 200
-          
           @_setPlaybackState(data.body)
         
         else
           @_setPlaybackState(null)
+      
       )
     
     _setPlaybackState: (data) =>
@@ -167,17 +167,18 @@ module.exports = (env) ->
         @_playbackState = null
         return
       
-      artists = []
-      artists.push(artist.name) for artist in data.item.artists
-      artist = artists.join(', ')
-      @_playbackState = data
+      if data.item?.artists?
+        artists = []
+        artists.push(artist.name) for artist in data.item.artists
+        artist = artists.join(', ')
       
+      @_playbackState = data
       @emit('playbackState', data)
-      @emit('currentDevice', data.device.id)
-      @emit('isPlaying', data.is_playing)
-      @emit('currentArtist', artist)
-      @emit('currentContext', data.context.uri)
-      @emit('currentTrack', data.item.name)
+      @emit('currentDevice', data.device.id) if data.device?.id?
+      @emit('isPlaying', data.is_playing) if data.is_playing?
+      @emit('currentArtist', artist) if artist?
+      @emit('currentContext', data.context.uri) if data.context_uri?
+      @emit('currentTrack', data.item.name) if data.item?.name?
         
     _setAccessToken: (token) =>
       return if @_accessToken is token
